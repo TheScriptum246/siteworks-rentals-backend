@@ -1,5 +1,6 @@
 package com.siteworks.rentals.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 
@@ -12,6 +13,7 @@ public class RentalEquipment {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "rental_id")
+    @JsonBackReference
     private Rental rental;
 
     @ManyToOne(fetch = FetchType.LAZY)

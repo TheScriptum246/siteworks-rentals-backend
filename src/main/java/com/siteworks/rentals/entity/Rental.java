@@ -1,5 +1,6 @@
 package com.siteworks.rentals.entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
@@ -42,6 +43,7 @@ public class Rental {
     private User staffMember;
 
     @OneToMany(mappedBy = "rental", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonManagedReference
     private List<RentalEquipment> rentalEquipment = new ArrayList<>();
 
     @Column(name = "created_at")
