@@ -2,11 +2,10 @@ package com.siteworks.rentals.controller;
 
 import com.siteworks.rentals.dto.*;
 import com.siteworks.rentals.entity.*;
-import com.siteworks.rentals.repository.RoleRepository;
 import com.siteworks.rentals.repository.UserRepository;
 import com.siteworks.rentals.security.jwt.JwtUtils;
 import com.siteworks.rentals.security.services.UserDetailsImpl;
-import com.siteworks.rentals.service.RefreshTokenService;
+import com.siteworks.rentals.security.services.UserDetailsServiceImpl;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +15,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -38,16 +39,13 @@ public class AuthController {
     UserRepository userRepository;
 
     @Autowired
-    RoleRepository roleRepository;
-
-    @Autowired
     PasswordEncoder encoder;
 
     @Autowired
     JwtUtils jwtUtils;
 
     @Autowired
-    RefreshTokenService refreshTokenService;
+    UserDetailsServiceImpl userDetailsService;
 
     @PostMapping("/signin")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
@@ -61,36 +59,79 @@ public class AuthController {
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
             String jwt = jwtUtils.generateJwtToken(authentication);
+            String refreshToken = jwtUtils.generateRefreshToken(authentication);
 
-            logger.info("JWT generated successfully, length: {}", jwt != null ? jwt.length() : "NULL");
-            logger.info("JWT starts with: {}", jwt != null && jwt.length() > 20 ? jwt.substring(0, 20) + "..." : jwt);
+            logger.info("JWT generated successfully");
 
             UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
             List<String> roles = userDetails.getAuthorities().stream()
                     .map(item -> item.getAuthority())
                     .collect(Collectors.toList());
 
-            logger.info("User details - ID: {}, Username: {}, Email: {}",
-                    userDetails.getId(), userDetails.getUsername(), userDetails.getEmail());
-            logger.info("User roles: {}", roles);
-
-            RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId());
-            logger.info("Refresh token created: {}", refreshToken.getToken());
+            logger.info("User authenticated - ID: {}, Username: {}",
+                    userDetails.getId(), userDetails.getUsername());
 
             JwtResponse response = new JwtResponse(jwt,
-                    refreshToken.getToken(),
+                    refreshToken,
                     userDetails.getId(),
                     userDetails.getUsername(),
                     userDetails.getEmail(),
                     roles);
 
-            logger.info("Returning JWT response with token: {}", jwt != null ? "TOKEN_PRESENT" : "TOKEN_NULL");
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
             logger.error("Authentication failed for username: {}", loginRequest.getUsername(), e);
             return ResponseEntity.badRequest()
                     .body(new MessageResponse("Error: Invalid username or password!"));
+        }
+    }
+
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
+        try {
+            String refreshToken = request.getRefreshToken();
+
+            // Validate refresh token
+            if (!jwtUtils.validateJwtToken(refreshToken)) {
+                return ResponseEntity.badRequest()
+                        .body(new MessageResponse("Invalid or expired refresh token"));
+            }
+
+            // Extract username from refresh token
+            String username = jwtUtils.getUserNameFromJwtToken(refreshToken);
+
+            // Load user details to ensure user still exists and is active
+            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+
+            // Create new authentication
+            Authentication authentication = new UsernamePasswordAuthenticationToken(
+                    userDetails, null, userDetails.getAuthorities());
+
+            // Generate new tokens
+            String newAccessToken = jwtUtils.generateJwtToken(authentication);
+            String newRefreshToken = jwtUtils.generateRefreshToken(authentication);
+
+            UserDetailsImpl userPrincipal = (UserDetailsImpl) userDetails;
+            List<String> roles = userPrincipal.getAuthorities().stream()
+                    .map(item -> item.getAuthority())
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(new JwtResponse(
+                    newAccessToken,
+                    newRefreshToken,
+                    userPrincipal.getId(),
+                    userPrincipal.getUsername(),
+                    userPrincipal.getEmail(),
+                    roles
+            ));
+
+        } catch (UsernameNotFoundException e) {
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("User not found"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("Failed to refresh token: " + e.getMessage()));
         }
     }
 
@@ -114,97 +155,17 @@ public class AuthController {
                 signUpRequest.getLastName());
 
         user.setPhone(signUpRequest.getPhone());
+        // Default role is CLIENT (set in User constructor)
 
-        Set<Role> roles = new HashSet<>();
-
-        // Default role is CLIENT
-        Role clientRole = roleRepository.findByName(ERole.ROLE_CLIENT)
-                .orElseThrow(() -> new RuntimeException("Error: Role is not found."));
-        roles.add(clientRole);
-
-        user.setRoles(roles);
         userRepository.save(user);
 
         return ResponseEntity.ok(new MessageResponse("User registered successfully!"));
     }
 
-    @PostMapping("/refreshtoken")
-    public ResponseEntity<?> refreshtoken(@Valid @RequestBody TokenRefreshRequest request) {
-        String requestRefreshToken = request.getRefreshToken();
-
-        try {
-            RefreshToken refreshToken = refreshTokenService.findByToken(requestRefreshToken)
-                    .orElseThrow(() -> new RuntimeException("Refresh token is not in database!"));
-
-            refreshToken = refreshTokenService.verifyExpiration(refreshToken);
-            User user = refreshToken.getUser();
-
-            UserDetailsImpl userDetails = UserDetailsImpl.build(user);
-            Authentication authentication = new UsernamePasswordAuthenticationToken(
-                    userDetails, null, userDetails.getAuthorities());
-
-            String token = jwtUtils.generateJwtToken(authentication);
-
-            return ResponseEntity.ok(new TokenRefreshResponse(token, requestRefreshToken));
-
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest()
-                    .body(new MessageResponse("Refresh token is not in database!"));
-        }
-    }
-
     @PostMapping("/signout")
     public ResponseEntity<?> logoutUser() {
-        try {
-            UserDetailsImpl userDetails = (UserDetailsImpl) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-            Long userId = userDetails.getId();
-            refreshTokenService.deleteByUserId(userId);
-            return ResponseEntity.ok(new MessageResponse("Log out successful!"));
-        } catch (Exception e) {
-            return ResponseEntity.ok(new MessageResponse("Log out successful!"));
-        }
-    }
-
-    // Test endpoint to verify the controller is working
-    @GetMapping("/test")
-    public ResponseEntity<?> test() {
-        return ResponseEntity.ok(new MessageResponse("Auth controller is working!"));
-    }
-
-    // Debug endpoint to test JWT generation
-    @PostMapping("/debug-jwt")
-    public ResponseEntity<?> debugJwt(@RequestBody LoginRequest loginRequest) {
-        try {
-            // Check if user exists
-            var userOpt = userRepository.findByUsername(loginRequest.getUsername());
-            if (userOpt.isEmpty()) {
-                return ResponseEntity.badRequest().body(new MessageResponse("User not found"));
-            }
-
-            User user = userOpt.get();
-            logger.info("User found: {} with roles: {}", user.getUsername(), user.getRoles());
-
-            // Check password
-            boolean passwordMatches = encoder.matches(loginRequest.getPassword(), user.getPassword());
-            logger.info("Password matches: {}", passwordMatches);
-
-            if (!passwordMatches) {
-                return ResponseEntity.badRequest().body(new MessageResponse("Password incorrect"));
-            }
-
-            // Try authentication
-            Authentication auth = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
-
-            // Generate JWT
-            String jwt = jwtUtils.generateJwtToken(auth);
-            logger.info("Generated JWT: {}", jwt);
-
-            return ResponseEntity.ok(new MessageResponse("JWT: " + jwt));
-
-        } catch (Exception e) {
-            logger.error("Debug JWT failed", e);
-            return ResponseEntity.badRequest().body(new MessageResponse("Error: " + e.getMessage()));
-        }
+        // With JWT-based refresh tokens, we don't need to clean up database
+        // Client should remove tokens from storage
+        return ResponseEntity.ok(new MessageResponse("Log out successful!"));
     }
 }

@@ -6,8 +6,8 @@ import com.siteworks.rentals.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class UserService {
@@ -48,9 +48,7 @@ public class UserService {
     }
 
     public UserInfoResponse convertToUserInfoResponse(User user) {
-        List<String> roles = user.getRoles().stream()
-                .map(role -> role.getName().name())
-                .collect(Collectors.toList());
+        List<String> roles = Collections.singletonList("ROLE_" + user.getRole().name());
 
         return new UserInfoResponse(
                 user.getId(),

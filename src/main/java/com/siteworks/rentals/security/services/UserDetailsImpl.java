@@ -7,9 +7,8 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
-import java.util.List;
+import java.util.Collections;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 public class UserDetailsImpl implements UserDetails {
     private static final long serialVersionUID = 1L;
@@ -19,7 +18,7 @@ public class UserDetailsImpl implements UserDetails {
     private String email;
     private String firstName;
     private String lastName;
-    private String phone;  // Added phone field
+    private String phone;
 
     @JsonIgnore
     private String password;
@@ -33,15 +32,14 @@ public class UserDetailsImpl implements UserDetails {
         this.email = email;
         this.firstName = firstName;
         this.lastName = lastName;
-        this.phone = phone;  // Set phone field
+        this.phone = phone;
         this.password = password;
         this.authorities = authorities;
     }
 
     public static UserDetailsImpl build(User user) {
-        List<GrantedAuthority> authorities = user.getRoles().stream()
-                .map(role -> new SimpleGrantedAuthority(role.getName().name()))
-                .collect(Collectors.toList());
+        // Simple role handling - create authority with ROLE_ prefix
+        GrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + user.getRole().name());
 
         return new UserDetailsImpl(
                 user.getId(),
@@ -49,9 +47,10 @@ public class UserDetailsImpl implements UserDetails {
                 user.getEmail(),
                 user.getFirstName(),
                 user.getLastName(),
-                user.getPhone(),  // Include phone from User entity
+                user.getPhone(),
                 user.getPassword(),
-                authorities);
+                Collections.singletonList(authority)
+        );
     }
 
     @Override
@@ -75,7 +74,7 @@ public class UserDetailsImpl implements UserDetails {
         return lastName;
     }
 
-    public String getPhone() {  // Added getPhone method
+    public String getPhone() {
         return phone;
     }
 

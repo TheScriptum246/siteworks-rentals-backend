@@ -1,9 +1,9 @@
 package com.siteworks.rentals.repository;
 
 import com.siteworks.rentals.entity.User;
-import com.siteworks.rentals.entity.ERole;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
@@ -18,12 +18,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Boolean existsByEmail(String email);
 
-    @Query("SELECT u FROM User u JOIN u.roles r WHERE r.name = :role")
-    List<User> findByRole(ERole role);
+    @Query("SELECT u FROM User u WHERE u.role = :role")
+    List<User> findByRole(@Param("role") User.Role role);
 
-    @Query("SELECT u FROM User u JOIN u.roles r WHERE r.name = 'ROLE_CLIENT'")
+    // Find all clients
+    @Query("SELECT u FROM User u WHERE u.role = 'CLIENT'")
     List<User> findAllClients();
 
-    @Query("SELECT u FROM User u JOIN u.roles r WHERE r.name = 'ROLE_STAFF'")
+    // Find all staff
+    @Query("SELECT u FROM User u WHERE u.role = 'STAFF'")
     List<User> findAllStaff();
 }
