@@ -8,6 +8,8 @@ import com.siteworks.rentals.security.jwt.JwtUtils;
 import com.siteworks.rentals.security.services.UserDetailsImpl;
 import com.siteworks.rentals.service.RefreshTokenService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -26,6 +28,9 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
+
     @Autowired
     AuthenticationManager authenticationManager;
 
@@ -46,26 +51,47 @@ public class AuthController {
 
     @PostMapping("/signin")
     public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
+        try {
+            logger.info("Login attempt for username: {}", loginRequest.getUsername());
 
-        Authentication authentication = authenticationManager
-                .authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
+            Authentication authentication = authenticationManager
+                    .authenticate(new UsernamePasswordAuthenticationToken(
+                            loginRequest.getUsername(),
+                            loginRequest.getPassword()));
 
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String jwt = jwtUtils.generateJwtToken(authentication);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            String jwt = jwtUtils.generateJwtToken(authentication);
 
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        List<String> roles = userDetails.getAuthorities().stream()
-                .map(item -> item.getAuthority())
-                .collect(Collectors.toList());
+            logger.info("JWT generated successfully, length: {}", jwt != null ? jwt.length() : "NULL");
+            logger.info("JWT starts with: {}", jwt != null && jwt.length() > 20 ? jwt.substring(0, 20) + "..." : jwt);
 
-        RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId());
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            List<String> roles = userDetails.getAuthorities().stream()
+                    .map(item -> item.getAuthority())
+                    .collect(Collectors.toList());
 
-        return ResponseEntity.ok(new JwtResponse(jwt,
-                refreshToken.getToken(),
-                userDetails.getId(),
-                userDetails.getUsername(),
-                userDetails.getEmail(),
-                roles));
+            logger.info("User details - ID: {}, Username: {}, Email: {}",
+                    userDetails.getId(), userDetails.getUsername(), userDetails.getEmail());
+            logger.info("User roles: {}", roles);
+
+            RefreshToken refreshToken = refreshTokenService.createRefreshToken(userDetails.getId());
+            logger.info("Refresh token created: {}", refreshToken.getToken());
+
+            JwtResponse response = new JwtResponse(jwt,
+                    refreshToken.getToken(),
+                    userDetails.getId(),
+                    userDetails.getUsername(),
+                    userDetails.getEmail(),
+                    roles);
+
+            logger.info("Returning JWT response with token: {}", jwt != null ? "TOKEN_PRESENT" : "TOKEN_NULL");
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            logger.error("Authentication failed for username: {}", loginRequest.getUsername(), e);
+            return ResponseEntity.badRequest()
+                    .body(new MessageResponse("Error: Invalid username or password!"));
+        }
     }
 
     @PostMapping("/signup")
@@ -129,34 +155,55 @@ public class AuthController {
 
     @PostMapping("/signout")
     public ResponseEntity<?> logoutUser() {
-        UserDetailsImpl userDetails = (UserDetailsImpl) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Long userId = userDetails.getId();
-        refreshTokenService.deleteByUserId(userId);
-        return ResponseEntity.ok(new MessageResponse("Log out successful!"));
+        try {
+            UserDetailsImpl userDetails = (UserDetailsImpl) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            Long userId = userDetails.getId();
+            refreshTokenService.deleteByUserId(userId);
+            return ResponseEntity.ok(new MessageResponse("Log out successful!"));
+        } catch (Exception e) {
+            return ResponseEntity.ok(new MessageResponse("Log out successful!"));
+        }
     }
 
-    @PostMapping("/debug-login")
-    public ResponseEntity<?> debugLogin(@RequestBody LoginRequest loginRequest) {
+    // Test endpoint to verify the controller is working
+    @GetMapping("/test")
+    public ResponseEntity<?> test() {
+        return ResponseEntity.ok(new MessageResponse("Auth controller is working!"));
+    }
+
+    // Debug endpoint to test JWT generation
+    @PostMapping("/debug-jwt")
+    public ResponseEntity<?> debugJwt(@RequestBody LoginRequest loginRequest) {
         try {
             // Check if user exists
-            User user = userRepository.findByUsername(loginRequest.getUsername()).orElse(null);
-            if (user == null) {
+            var userOpt = userRepository.findByUsername(loginRequest.getUsername());
+            if (userOpt.isEmpty()) {
                 return ResponseEntity.badRequest().body(new MessageResponse("User not found"));
             }
 
+            User user = userOpt.get();
+            logger.info("User found: {} with roles: {}", user.getUsername(), user.getRoles());
+
             // Check password
             boolean passwordMatches = encoder.matches(loginRequest.getPassword(), user.getPassword());
+            logger.info("Password matches: {}", passwordMatches);
+
             if (!passwordMatches) {
-                return ResponseEntity.badRequest().body(new MessageResponse("Password doesn't match"));
+                return ResponseEntity.badRequest().body(new MessageResponse("Password incorrect"));
             }
 
             // Try authentication
-            Authentication authentication = authenticationManager
-                    .authenticate(new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
+            Authentication auth = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword()));
 
-            return ResponseEntity.ok(new MessageResponse("Authentication successful"));
+            // Generate JWT
+            String jwt = jwtUtils.generateJwtToken(auth);
+            logger.info("Generated JWT: {}", jwt);
+
+            return ResponseEntity.ok(new MessageResponse("JWT: " + jwt));
 
         } catch (Exception e) {
+            logger.error("Debug JWT failed", e);
             return ResponseEntity.badRequest().body(new MessageResponse("Error: " + e.getMessage()));
         }
     }

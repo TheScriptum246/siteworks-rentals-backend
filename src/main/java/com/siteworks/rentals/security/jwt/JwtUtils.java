@@ -8,10 +8,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Component
 public class JwtUtils {
@@ -26,8 +31,23 @@ public class JwtUtils {
     public String generateJwtToken(Authentication authentication) {
         UserDetailsImpl userPrincipal = (UserDetailsImpl) authentication.getPrincipal();
 
+        // Create claims map with user information
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("id", userPrincipal.getId());
+        claims.put("email", userPrincipal.getEmail() != null ? userPrincipal.getEmail() : "");
+        claims.put("firstName", userPrincipal.getFirstName() != null ? userPrincipal.getFirstName() : "");
+        claims.put("lastName", userPrincipal.getLastName() != null ? userPrincipal.getLastName() : "");
+        claims.put("phone", userPrincipal.getPhone() != null ? userPrincipal.getPhone() : "");
+
+        // Add roles to claims
+        List<String> roles = userPrincipal.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList());
+        claims.put("roles", roles);
+
         return Jwts.builder()
-                .setSubject((userPrincipal.getUsername()))
+                .setClaims(claims)
+                .setSubject(userPrincipal.getUsername())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
                 .signWith(key(), SignatureAlgorithm.HS256)
@@ -43,8 +63,18 @@ public class JwtUtils {
                 .parseClaimsJws(token).getBody().getSubject();
     }
 
+    public Claims getAllClaimsFromToken(String token) {
+        return Jwts.parserBuilder().setSigningKey(key()).build()
+                .parseClaimsJws(token).getBody();
+    }
+
     public boolean validateJwtToken(String authToken) {
         try {
+            if (authToken == null || authToken.trim().isEmpty()) {
+                logger.error("JWT token is null or empty");
+                return false;
+            }
+
             Jwts.parserBuilder().setSigningKey(key()).build().parse(authToken);
             return true;
         } catch (MalformedJwtException e) {
@@ -55,6 +85,8 @@ public class JwtUtils {
             logger.error("JWT token is unsupported: {}", e.getMessage());
         } catch (IllegalArgumentException e) {
             logger.error("JWT claims string is empty: {}", e.getMessage());
+        } catch (Exception e) {
+            logger.error("JWT token validation failed: {}", e.getMessage());
         }
 
         return false;

@@ -1,6 +1,7 @@
 package com.siteworks.rentals.config;
 
 import com.siteworks.rentals.security.jwt.AuthTokenFilter;
+import com.siteworks.rentals.config.JwtAuthenticationEntryPoint;
 import com.siteworks.rentals.security.services.UserDetailsServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -26,6 +27,7 @@ import java.util.Arrays;
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
 public class SecurityConfig {
+
     @Autowired
     UserDetailsServiceImpl userDetailsService;
 
@@ -76,8 +78,13 @@ public class SecurityConfig {
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // Allow authentication endpoints (since context-path is /api, these map to /api/auth/*)
                         .requestMatchers("/auth/**").permitAll()
+                        // Allow test endpoints if any
                         .requestMatchers("/test/**").permitAll()
+                        // Allow error pages
+                        .requestMatchers("/error").permitAll()
+                        // All other requests require authentication
                         .anyRequest().authenticated()
                 );
 

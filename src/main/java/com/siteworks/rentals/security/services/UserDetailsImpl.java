@@ -19,6 +19,7 @@ public class UserDetailsImpl implements UserDetails {
     private String email;
     private String firstName;
     private String lastName;
+    private String phone;  // Added phone field
 
     @JsonIgnore
     private String password;
@@ -26,12 +27,13 @@ public class UserDetailsImpl implements UserDetails {
     private Collection<? extends GrantedAuthority> authorities;
 
     public UserDetailsImpl(Long id, String username, String email, String firstName, String lastName,
-                           String password, Collection<? extends GrantedAuthority> authorities) {
+                           String phone, String password, Collection<? extends GrantedAuthority> authorities) {
         this.id = id;
         this.username = username;
         this.email = email;
         this.firstName = firstName;
         this.lastName = lastName;
+        this.phone = phone;  // Set phone field
         this.password = password;
         this.authorities = authorities;
     }
@@ -47,6 +49,7 @@ public class UserDetailsImpl implements UserDetails {
                 user.getEmail(),
                 user.getFirstName(),
                 user.getLastName(),
+                user.getPhone(),  // Include phone from User entity
                 user.getPassword(),
                 authorities);
     }
@@ -70,6 +73,10 @@ public class UserDetailsImpl implements UserDetails {
 
     public String getLastName() {
         return lastName;
+    }
+
+    public String getPhone() {  // Added getPhone method
+        return phone;
     }
 
     @Override
