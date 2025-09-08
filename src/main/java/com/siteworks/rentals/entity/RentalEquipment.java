@@ -16,7 +16,7 @@ public class RentalEquipment {
     @JsonBackReference
     private Rental rental;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "equipment_id")
     private Equipment equipment;
 

@@ -42,7 +42,7 @@ public class Rental {
     @JoinColumn(name = "staff_member_id")
     private User staffMember;
 
-    @OneToMany(mappedBy = "rental", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "rental", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
     @JsonManagedReference
     private List<RentalEquipment> rentalEquipment = new ArrayList<>();
 

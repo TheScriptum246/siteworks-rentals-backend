@@ -29,6 +29,11 @@ public class EquipmentController {
         return ResponseEntity.ok(equipment);
     }
 
+    @GetMapping("/categories")
+    public ResponseEntity<EquipmentCategory[]> getEquipmentCategories() {
+        return ResponseEntity.ok(EquipmentCategory.values());
+    }
+
     @GetMapping("/all")
     @PreAuthorize("hasRole('STAFF')")
     public ResponseEntity<List<Equipment>> getAllEquipment() {

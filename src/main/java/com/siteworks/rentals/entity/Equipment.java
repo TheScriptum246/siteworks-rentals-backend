@@ -85,4 +85,12 @@ public class Equipment {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public BigDecimal getWeeklyRate() {
+        return this.dailyRate.multiply(BigDecimal.valueOf(6.5));
+    }
+
+    public BigDecimal getMonthlyRate() {
+        return this.dailyRate.multiply(BigDecimal.valueOf(26));
+    }
 }
