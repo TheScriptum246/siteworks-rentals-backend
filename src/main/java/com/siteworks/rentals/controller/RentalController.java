@@ -86,7 +86,8 @@ public class RentalController {
         User currentUser = userService.findById(userDetails.getId());
 
         // Staff can view any rental, clients can only view their own
-        if (currentUser.getRoles().stream().anyMatch(role -> role.getName().name().equals("ROLE_STAFF")) ||
+        // Updated to use simplified role checking
+        if (currentUser.getRole() == User.Role.STAFF ||
                 rental.getClient().getId().equals(currentUser.getId())) {
             return ResponseEntity.ok(rental);
         } else {
@@ -103,8 +104,8 @@ public class RentalController {
         User client;
 
         // If request has clientId and current user is staff, use that client
-        if (request.getClientId() != null &&
-                currentUser.getRoles().stream().anyMatch(role -> role.getName().name().equals("ROLE_STAFF"))) {
+        // Updated to use simplified role checking
+        if (request.getClientId() != null && currentUser.getRole() == User.Role.STAFF) {
             client = userService.findById(request.getClientId());
             if (client == null) {
                 return ResponseEntity.badRequest().body(new MessageResponse("Client not found"));
@@ -159,7 +160,8 @@ public class RentalController {
         User currentUser = userService.findById(userDetails.getId());
 
         // Check if client is canceling their own rental or if staff is canceling
-        if (currentUser.getRoles().stream().anyMatch(role -> role.getName().name().equals("ROLE_STAFF")) ||
+        // Updated to use simplified role checking
+        if (currentUser.getRole() == User.Role.STAFF ||
                 rental.getClient().getId().equals(currentUser.getId())) {
 
             boolean cancelled = rentalService.cancelRental(id);
