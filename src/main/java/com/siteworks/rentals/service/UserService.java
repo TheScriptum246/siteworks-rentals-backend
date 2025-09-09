@@ -15,50 +15,115 @@ public class UserService {
     @Autowired
     private UserRepository userRepository;
 
+    // ✅ ADDED: Get all users method that was missing
+    public List<User> getAllUsers() {
+        try {
+            return userRepository.findAll();
+        } catch (Exception e) {
+            System.err.println("Error in getAllUsers: " + e.getMessage());
+            e.printStackTrace();
+            return Collections.emptyList();
+        }
+    }
+
     public List<User> getAllClients() {
-        return userRepository.findAllClients();
+        try {
+            return userRepository.findAllClients();
+        } catch (Exception e) {
+            System.err.println("Error in getAllClients: " + e.getMessage());
+            e.printStackTrace();
+            return Collections.emptyList();
+        }
     }
 
     public List<User> getAllStaff() {
-        return userRepository.findAllStaff();
+        try {
+            return userRepository.findAllStaff();
+        } catch (Exception e) {
+            System.err.println("Error in getAllStaff: " + e.getMessage());
+            e.printStackTrace();
+            return Collections.emptyList();
+        }
     }
 
     public User findById(Long id) {
-        return userRepository.findById(id).orElse(null);
+        try {
+            return userRepository.findById(id).orElse(null);
+        } catch (Exception e) {
+            System.err.println("Error in findById: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public User findByUsername(String username) {
-        return userRepository.findByUsername(username).orElse(null);
+        try {
+            return userRepository.findByUsername(username).orElse(null);
+        } catch (Exception e) {
+            System.err.println("Error in findByUsername: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public User findByEmail(String email) {
-        return userRepository.findByEmail(email).orElse(null);
+        try {
+            return userRepository.findByEmail(email).orElse(null);
+        } catch (Exception e) {
+            System.err.println("Error in findByEmail: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public boolean existsByUsername(String username) {
-        return userRepository.existsByUsername(username);
+        try {
+            return userRepository.existsByUsername(username);
+        } catch (Exception e) {
+            System.err.println("Error in existsByUsername: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
     }
 
     public boolean existsByEmail(String email) {
-        return userRepository.existsByEmail(email);
+        try {
+            return userRepository.existsByEmail(email);
+        } catch (Exception e) {
+            System.err.println("Error in existsByEmail: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
     }
 
     public User save(User user) {
-        return userRepository.save(user);
+        try {
+            return userRepository.save(user);
+        } catch (Exception e) {
+            System.err.println("Error in save: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
     }
 
     public UserInfoResponse convertToUserInfoResponse(User user) {
-        List<String> roles = Collections.singletonList("ROLE_" + user.getRole().name());
+        try {
+            List<String> roles = Collections.singletonList("ROLE_" + user.getRole().name());
 
-        return new UserInfoResponse(
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getFirstName(),
-                user.getLastName(),
-                user.getPhone(),
-                roles,
-                user.getCreatedAt()
-        );
+            return new UserInfoResponse(
+                    user.getId(),
+                    user.getUsername(),
+                    user.getEmail(),
+                    user.getFirstName(),
+                    user.getLastName(),
+                    user.getPhone(),
+                    roles,
+                    user.getCreatedAt()
+            );
+        } catch (Exception e) {
+            System.err.println("Error in convertToUserInfoResponse: " + e.getMessage());
+            e.printStackTrace();
+            return null;
+        }
     }
 }
