@@ -43,13 +43,12 @@ public class JwtUtils {
                 .setSubject(userPrincipal.getUsername())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
-                // Add user details to token claims
                 .claim("id", userPrincipal.getId())
                 .claim("email", userPrincipal.getEmail())
                 .claim("firstName", userPrincipal.getFirstName())
                 .claim("lastName", userPrincipal.getLastName())
                 .claim("phone", userPrincipal.getPhone())
-                .claim("roles", roles) // Include roles in token
+                .claim("roles", roles)
                 .signWith(key(), SignatureAlgorithm.HS512)
                 .compact();
     }
@@ -68,13 +67,12 @@ public class JwtUtils {
                 .setSubject(userPrincipal.getUsername())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtRefreshExpirationMs))
-                // Add user details to refresh token claims too
                 .claim("id", userPrincipal.getId())
                 .claim("email", userPrincipal.getEmail())
                 .claim("firstName", userPrincipal.getFirstName())
                 .claim("lastName", userPrincipal.getLastName())
                 .claim("phone", userPrincipal.getPhone())
-                .claim("roles", roles) // Include roles in refresh token
+                .claim("roles", roles)
                 .signWith(key(), SignatureAlgorithm.HS512)
                 .compact();
     }

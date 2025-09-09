@@ -30,12 +30,6 @@ public class RentalController {
     @Autowired
     private UserService userService;
 
-    // Test endpoint
-    @GetMapping("/test")
-    public ResponseEntity<String> testEndpoint() {
-        return ResponseEntity.ok("SiteWorks RentalController is working! 🎉");
-    }
-
     @GetMapping
     @PreAuthorize("hasRole('STAFF')")
     public ResponseEntity<List<Rental>> getAllRentals() {

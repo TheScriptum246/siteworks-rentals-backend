@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
-@RequestMapping("/users") // Remove /api since it's already in context path
+@RequestMapping("/users")
 public class UserController {
 
     @Autowired
@@ -42,12 +42,6 @@ public class UserController {
             e.printStackTrace();
             return ResponseEntity.status(500).body(new MessageResponse("Internal server error"));
         }
-    }
-
-    // Test endpoint to verify controller is working
-    @GetMapping("/test")
-    public ResponseEntity<String> testEndpoint() {
-        return ResponseEntity.ok("SiteWorks UserController is working! 🎉");
     }
 
     @GetMapping("/profile")
@@ -83,7 +77,6 @@ public class UserController {
                 return ResponseEntity.badRequest().body(new MessageResponse("User not found"));
             }
 
-            // Update allowed fields
             if (updates.containsKey("firstName")) {
                 user.setFirstName(updates.get("firstName"));
             }
@@ -111,7 +104,6 @@ public class UserController {
         }
     }
 
-    // Change password endpoint
     @PutMapping("/change-password")
     @PreAuthorize("hasRole('CLIENT') or hasRole('STAFF')")
     public ResponseEntity<?> changePassword(@RequestBody Map<String, String> passwordData) {
@@ -150,7 +142,6 @@ public class UserController {
         }
     }
 
-    // Update user role endpoint for client management
     @PutMapping("/{id}/role")
     @PreAuthorize("hasRole('STAFF')")
     public ResponseEntity<?> updateUserRole(@PathVariable Long id, @RequestBody Map<String, String> roleUpdate) {

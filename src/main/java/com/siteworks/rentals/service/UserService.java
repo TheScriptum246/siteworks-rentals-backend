@@ -15,7 +15,6 @@ public class UserService {
     @Autowired
     private UserRepository userRepository;
 
-    // ✅ ADDED: Get all users method that was missing
     public List<User> getAllUsers() {
         try {
             return userRepository.findAll();

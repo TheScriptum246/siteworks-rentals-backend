@@ -85,7 +85,6 @@ public class EquipmentService {
     public boolean deleteEquipment(Long id) {
         Optional<Equipment> equipment = equipmentRepository.findById(id);
         if (equipment.isPresent()) {
-            // Instead of hard delete, mark as unavailable
             Equipment eq = equipment.get();
             eq.setAvailable(false);
             equipmentRepository.save(eq);
