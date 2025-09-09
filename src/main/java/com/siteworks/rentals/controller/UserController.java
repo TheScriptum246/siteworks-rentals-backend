@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
-@RequestMapping("/api/users") // ✅ FIXED: Added /api prefix to match frontend calls
+@RequestMapping("/users") // Remove /api since it's already in context path
 public class UserController {
 
     @Autowired
@@ -27,12 +27,12 @@ public class UserController {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
-    // ✅ ADDED: Get all users endpoint that was missing
+    // Get all users endpoint
     @GetMapping
     @PreAuthorize("hasRole('STAFF')")
-    public ResponseEntity<List<UserInfoResponse>> getAllUsers() {
+    public ResponseEntity<?> getAllUsers() {
         try {
-            List<User> users = userService.getAllUsers(); // Make sure this method exists in UserService
+            List<User> users = userService.getAllUsers();
             List<UserInfoResponse> usersResponse = users.stream()
                     .map(userService::convertToUserInfoResponse)
                     .collect(Collectors.toList());
@@ -40,11 +40,11 @@ public class UserController {
         } catch (Exception e) {
             System.err.println("Error in getAllUsers: " + e.getMessage());
             e.printStackTrace();
-            return ResponseEntity.status(500).build();
+            return ResponseEntity.status(500).body(new MessageResponse("Internal server error"));
         }
     }
 
-    // ✅ Test endpoint to verify controller is working
+    // Test endpoint to verify controller is working
     @GetMapping("/test")
     public ResponseEntity<String> testEndpoint() {
         return ResponseEntity.ok("SiteWorks UserController is working! 🎉");
@@ -54,7 +54,8 @@ public class UserController {
     @PreAuthorize("hasRole('CLIENT') or hasRole('STAFF')")
     public ResponseEntity<?> getUserProfile() {
         try {
-            UserDetailsImpl userDetails = (UserDetailsImpl) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            UserDetailsImpl userDetails = (UserDetailsImpl) SecurityContextHolder.getContext()
+                    .getAuthentication().getPrincipal();
             User user = userService.findById(userDetails.getId());
 
             if (user == null) {
@@ -74,7 +75,8 @@ public class UserController {
     @PreAuthorize("hasRole('CLIENT') or hasRole('STAFF')")
     public ResponseEntity<?> updateUserProfile(@RequestBody Map<String, String> updates) {
         try {
-            UserDetailsImpl userDetails = (UserDetailsImpl) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            UserDetailsImpl userDetails = (UserDetailsImpl) SecurityContextHolder.getContext()
+                    .getAuthentication().getPrincipal();
             User user = userService.findById(userDetails.getId());
 
             if (user == null) {
@@ -109,7 +111,46 @@ public class UserController {
         }
     }
 
-    // ✅ ADDED: Update user role endpoint for client management
+    // Change password endpoint
+    @PutMapping("/change-password")
+    @PreAuthorize("hasRole('CLIENT') or hasRole('STAFF')")
+    public ResponseEntity<?> changePassword(@RequestBody Map<String, String> passwordData) {
+        try {
+            UserDetailsImpl userDetails = (UserDetailsImpl) SecurityContextHolder.getContext()
+                    .getAuthentication().getPrincipal();
+            User user = userService.findById(userDetails.getId());
+
+            if (user == null) {
+                return ResponseEntity.badRequest().body(new MessageResponse("User not found"));
+            }
+
+            String currentPassword = passwordData.get("currentPassword");
+            String newPassword = passwordData.get("newPassword");
+
+            if (currentPassword == null || newPassword == null) {
+                return ResponseEntity.badRequest()
+                        .body(new MessageResponse("Current password and new password are required"));
+            }
+
+            // Verify current password
+            if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+                return ResponseEntity.badRequest()
+                        .body(new MessageResponse("Current password is incorrect"));
+            }
+
+            // Update password
+            user.setPassword(passwordEncoder.encode(newPassword));
+            userService.save(user);
+
+            return ResponseEntity.ok(new MessageResponse("Password changed successfully"));
+        } catch (Exception e) {
+            System.err.println("Error in changePassword: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(new MessageResponse("Internal server error"));
+        }
+    }
+
+    // Update user role endpoint for client management
     @PutMapping("/{id}/role")
     @PreAuthorize("hasRole('STAFF')")
     public ResponseEntity<?> updateUserRole(@PathVariable Long id, @RequestBody Map<String, String> roleUpdate) {
@@ -134,46 +175,12 @@ public class UserController {
             user.setRole(newRole);
             userService.save(user);
 
-            return ResponseEntity.ok(new MessageResponse("User role updated successfully"));
-
+            UserInfoResponse updatedUser = userService.convertToUserInfoResponse(user);
+            return ResponseEntity.ok(updatedUser);
         } catch (Exception e) {
             System.err.println("Error in updateUserRole: " + e.getMessage());
             e.printStackTrace();
             return ResponseEntity.status(500).body(new MessageResponse("Internal server error"));
-        }
-    }
-
-    @GetMapping("/clients")
-    @PreAuthorize("hasRole('STAFF')")
-    public ResponseEntity<?> getAllClients() {
-        try {
-            List<User> clients = userService.getAllClients();
-            List<UserInfoResponse> clientsResponse = clients.stream()
-                    .map(userService::convertToUserInfoResponse)
-                    .collect(Collectors.toList());
-
-            return ResponseEntity.ok(clientsResponse);
-        } catch (Exception e) {
-            System.err.println("Error in getAllClients: " + e.getMessage());
-            e.printStackTrace();
-            return ResponseEntity.status(500).build();
-        }
-    }
-
-    @GetMapping("/staff")
-    @PreAuthorize("hasRole('STAFF')")
-    public ResponseEntity<?> getAllStaff() {
-        try {
-            List<User> staff = userService.getAllStaff();
-            List<UserInfoResponse> staffResponse = staff.stream()
-                    .map(userService::convertToUserInfoResponse)
-                    .collect(Collectors.toList());
-
-            return ResponseEntity.ok(staffResponse);
-        } catch (Exception e) {
-            System.err.println("Error in getAllStaff: " + e.getMessage());
-            e.printStackTrace();
-            return ResponseEntity.status(500).build();
         }
     }
 }

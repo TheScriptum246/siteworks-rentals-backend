@@ -21,7 +21,7 @@ import java.util.Map;
 
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
-@RequestMapping("/api/rentals") // ✅ FIXED: Added /api prefix to match frontend calls
+@RequestMapping("/rentals") // ✅ FIXED: Removed /api since it's in context-path
 public class RentalController {
 
     @Autowired
@@ -30,7 +30,7 @@ public class RentalController {
     @Autowired
     private UserService userService;
 
-    // ✅ Test endpoint to verify controller is working
+    // Test endpoint
     @GetMapping("/test")
     public ResponseEntity<String> testEndpoint() {
         return ResponseEntity.ok("SiteWorks RentalController is working! 🎉");
@@ -40,12 +40,14 @@ public class RentalController {
     @PreAuthorize("hasRole('STAFF')")
     public ResponseEntity<List<Rental>> getAllRentals() {
         try {
+            System.out.println("getAllRentals called"); // Debug log
             List<Rental> rentals = rentalService.getAllRentals();
+            System.out.println("Found " + (rentals != null ? rentals.size() : 0) + " rentals"); // Debug log
             return ResponseEntity.ok(rentals != null ? rentals : Collections.emptyList());
         } catch (Exception e) {
             System.err.println("Error in getAllRentals: " + e.getMessage());
             e.printStackTrace();
-            return ResponseEntity.ok(Collections.emptyList()); // Return empty list instead of error
+            return ResponseEntity.ok(Collections.emptyList());
         }
     }
 
